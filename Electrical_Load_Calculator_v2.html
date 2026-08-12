@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Electrical Load Calculator</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef1f4;margin:0;padding:20px;color:#111}
+main{max-width:460px;margin:auto;background:#fff;padding:22px;border-radius:18px;box-shadow:0 5px 20px #0002}
+h1{font-size:24px;margin:0 0 5px}.s{color:#666;margin:0 0 18px}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button{flex:1;margin:0;padding:11px;font-size:15px}
+label{font-weight:bold;display:block;margin:13px 0 6px}
+select,input,button{width:100%;font-size:19px;padding:13px;border-radius:10px;box-sizing:border-box}
+select,input{border:2px solid #bbb;background:#fff}
+button{border:0;background:#111;color:#fff;font-weight:bold;margin-top:16px}
+button.secondary{background:#ddd;color:#111}
+.section{display:none}.section.active{display:block}
+#dcV1,#dcV2{display:none}
+.result{display:none;margin-top:18px;border-top:1px solid #ddd;padding-top:12px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:18px}
+.big{font-size:24px;font-weight:bold}
+.note{font-size:12px;background:#fff2bd;padding:10px;border-radius:9px;margin-top:12px;line-height:1.4}
+.ck{display:flex;gap:9px;align-items:center;margin-top:13px;font-size:14px}
+.ck input{width:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>Electrical Load Calculator</h1>
+<p class="s">120 VAC / 12, 24, 48 VDC</p>
+
+<div class="tabs">
+  <button onclick="showTab('watts')">Watts → Amps</button>
+  <button class="secondary" onclick="showTab('load')">Load Amps → Protection</button>
+</div>
+
+<section id="watts" class="section active">
+<label>Power Type</label>
+<select id="type1" onchange="toggleDC('type1','dcV1')">
+  <option value="ac">120 VAC</option>
+  <option value="dc">DC</option>
+</select>
+
+<div id="dcV1">
+<label>DC Voltage</label>
+<select id="v1"><option>12</option><option>24</option><option>48</option></select>
+</div>
+
+<label>Load (Watts)</label>
+<input id="w" type="number" inputmode="decimal" min="1" placeholder="1500">
+
+<label class="ck"><input id="cont1" type="checkbox" checked> Continuous load (3+ hours)</label>
+
+<button onclick="calcWatts()">CALCULATE</button>
+
+<div id="r1" class="result">
+  <div class="row"><span>Voltage</span><b id="vo1"></b></div>
+  <div class="row"><span>Load Current</span><b id="amps1"></b></div>
+  <div class="row"><span>Design Current</span><b id="design1"></b></div>
+  <div class="row big"><span id="protText1">Protection</span><span id="prot1"></span></div>
+  <div class="note" id="note1"></div>
+</div>
+</section>
+
+<section id="load" class="section">
+<label>Power Type</label>
+<select id="type2" onchange="toggleDC('type2','dcV2')">
+  <option value="ac">120 VAC</option>
+  <option value="dc">DC</option>
+</select>
+
+<div id="dcV2">
+<label>DC Voltage</label>
+<select id="v2"><option>12</option><option>24</option><option>48</option></select>
+</div>
+
+<label>Load Current (Amps)</label>
+<input id="loadA" type="number" inputmode="decimal" min="0.1" step="0.1" placeholder="12.5">
+
+<label class="ck"><input id="cont2" type="checkbox" checked> Continuous load (3+ hours)</label>
+
+<button onclick="calcLoad()">RECOMMEND PROTECTION</button>
+
+<div id="r2" class="result">
+  <div class="row"><span>Entered Load</span><b id="entered2"></b></div>
+  <div class="row"><span>Design Current</span><b id="design2"></b></div>
+  <div class="row big"><span id="protText2">Protection</span><span id="prot2"></span></div>
+  <div class="note" id="note2"></div>
+</div>
+</section>
+
+</main>
+
+<script>
+const sizes=[1,2,3,4,5,6,7.5,10,15,20,25,30,35,40,45,50,60,70,80,90,100];
+
+function showTab(id){
+  document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toggleDC(typeId, dcId){
+  document.getElementById(dcId).style.display =
+    document.getElementById(typeId).value==="dc" ? "block":"none";
+}
+function nextSize(a){ return sizes.find(x=>x>=a); }
+
+function protectionLabel(type){
+  return type==="ac" ? "Suggested Breaker" : "Suggested Fuse/Breaker";
+}
+function safetyNote(type){
+  if(type==="dc"){
+    return "Use only a fuse or circuit breaker specifically rated for the DC voltage. Verify wire ampacity, equipment nameplate, manufacturer instructions and fault-current/interrupting rating.";
+  }
+  return "Verify conductor ampacity, receptacle/equipment rating and manufacturer instructions. Motors, transformers, welders, VFDs and high-inrush loads require application-specific protection sizing.";
+}
+
+function calcWatts(){
+  const W=+document.getElementById('w').value;
+  if(!W || W<=0){ alert("Enter load in watts"); return; }
+
+  const type=document.getElementById('type1').value;
+  const V=type==="ac" ? 120 : +document.getElementById('v1').value;
+  const A=W/V;
+  const D=A*(document.getElementById('cont1').checked ? 1.25 : 1);
+  const B=nextSize(D);
+
+  document.getElementById('vo1').textContent=V+" V "+(type==="ac"?"AC":"DC");
+  document.getElementById('amps1').textContent=A.toFixed(2)+" A";
+  document.getElementById('design1').textContent=D.toFixed(2)+" A";
+  document.getElementById('protText1').textContent=protectionLabel(type);
+  document.getElementById('prot1').textContent=B ? B+" A" : ">100 A – engineering review";
+  document.getElementById('note1').textContent=safetyNote(type);
+  document.getElementById('r1').style.display="block";
+}
+
+function calcLoad(){
+  const A=+document.getElementById('loadA').value;
+  if(!A || A<=0){ alert("Enter load current in amps"); return; }
+
+  const type=document.getElementById('type2').value;
+  const D=A*(document.getElementById('cont2').checked ? 1.25 : 1);
+  const B=nextSize(D);
+
+  document.getElementById('entered2').textContent=A.toFixed(2)+" A";
+  document.getElementById('design2').textContent=D.toFixed(2)+" A";
+  document.getElementById('protText2').textContent=protectionLabel(type);
+  document.getElementById('prot2').textContent=B ? B+" A" : ">100 A – engineering review";
+  document.getElementById('note2').textContent=safetyNote(type);
+  document.getElementById('r2').style.display="block";
+}
+</script>
+</body>
+</html>
