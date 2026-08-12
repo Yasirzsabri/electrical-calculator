@@ -50,6 +50,8 @@ button.secondary{background:#ddd;color:#111}
 <label>Load (Watts)</label>
 <input id="w" type="number" inputmode="decimal" min="1" placeholder="1500">
 
+<label>Cable Length - One Way (ft)</label>
+<input id="len1" type="number" inputmode="decimal" min="1" value="10">
 <label class="ck"><input id="cont1" type="checkbox" checked> Continuous load (3+ hours)</label>
 
 <button onclick="calcWatts()">CALCULATE</button>
@@ -59,6 +61,7 @@ button.secondary{background:#ddd;color:#111}
   <div class="row"><span>Load Current</span><b id="amps1"></b></div>
   <div class="row"><span>Design Current</span><b id="design1"></b></div>
   <div class="row big"><span id="protText1">Protection</span><span id="prot1"></span></div>
+<div class="row big"><span>Suggested Wire</span><span id="wire1"></span></div>
   <div class="note" id="note1"></div>
 </div>
 </section>
@@ -78,6 +81,8 @@ button.secondary{background:#ddd;color:#111}
 <label>Load Current (Amps)</label>
 <input id="loadA" type="number" inputmode="decimal" min="0.1" step="0.1" placeholder="12.5">
 
+<label>Cable Length - One Way (ft)</label>
+<input id="len2" type="number" inputmode="decimal" min="1" value="10">
 <label class="ck"><input id="cont2" type="checkbox" checked> Continuous load (3+ hours)</label>
 
 <button onclick="calcLoad()">RECOMMEND PROTECTION</button>
@@ -86,6 +91,7 @@ button.secondary{background:#ddd;color:#111}
   <div class="row"><span>Entered Load</span><b id="entered2"></b></div>
   <div class="row"><span>Design Current</span><b id="design2"></b></div>
   <div class="row big"><span id="protText2">Protection</span><span id="prot2"></span></div>
+<div class="row big"><span>Suggested Wire</span><span id="wire2"></span></div>
   <div class="note" id="note2"></div>
 </div>
 </section>
@@ -110,9 +116,26 @@ function protectionLabel(type){
 }
 function safetyNote(type){
   if(type==="dc"){
-    return "Use only a fuse or circuit breaker specifically rated for the DC voltage. Verify wire ampacity, equipment nameplate, manufacturer instructions and fault-current/interrupting rating.";
+    return "Wire size is a field estimate using copper conductor ampacity plus a 3% voltage-drop target. Use only DC-rated protection. Verify conductor type, installation method, equipment nameplate, manufacturer instructions and fault-current rating.";
   }
-  return "Verify conductor ampacity, receptacle/equipment rating and manufacturer instructions. Motors, transformers, welders, VFDs and high-inrush loads require application-specific protection sizing.";
+  return "Wire size is a field estimate using copper conductor ampacity plus a 3% voltage-drop target. Verify conductor type, installation method, equipment rating and manufacturer instructions. Motors, transformers, welders, VFDs and high-inrush loads require application-specific sizing.";
+}
+
+
+const wireTable=[
+ {awg:18,amps:7,r:6.385},{awg:16,amps:10,r:4.016},{awg:14,amps:15,r:2.525},
+ {awg:12,amps:20,r:1.588},{awg:10,amps:30,r:0.999},{awg:8,amps:40,r:0.6282},
+ {awg:6,amps:55,r:0.3951},{awg:4,amps:70,r:0.2485},{awg:3,amps:85,r:0.1970},
+ {awg:2,amps:95,r:0.1563},{awg:1,amps:110,r:0.1239}
+];
+function suggestedWire(loadA,designA,V,L){
+ const maxDrop=V*0.03;
+ for(const w of wireTable){
+  if(w.amps<designA) continue;
+  const drop=loadA*w.r*(L*2)/1000;
+  if(drop<=maxDrop) return w.awg+" AWG Cu";
+ }
+ return "Engineering review";
 }
 
 function calcWatts(){
@@ -124,12 +147,15 @@ function calcWatts(){
   const A=W/V;
   const D=A*(document.getElementById('cont1').checked ? 1.25 : 1);
   const B=nextSize(D);
+  const L=Math.max(1,+document.getElementById('len1').value||10);
+  const WG=suggestedWire(A,D,V,L);
 
   document.getElementById('vo1').textContent=V+" V "+(type==="ac"?"AC":"DC");
   document.getElementById('amps1').textContent=A.toFixed(2)+" A";
   document.getElementById('design1').textContent=D.toFixed(2)+" A";
   document.getElementById('protText1').textContent=protectionLabel(type);
   document.getElementById('prot1').textContent=B ? B+" A" : ">100 A – engineering review";
+  document.getElementById('wire1').textContent=WG;
   document.getElementById('note1').textContent=safetyNote(type);
   document.getElementById('r1').style.display="block";
 }
@@ -141,11 +167,15 @@ function calcLoad(){
   const type=document.getElementById('type2').value;
   const D=A*(document.getElementById('cont2').checked ? 1.25 : 1);
   const B=nextSize(D);
+  const V=type==="ac" ? 120 : +document.getElementById('v2').value;
+  const L=Math.max(1,+document.getElementById('len2').value||10);
+  const WG=suggestedWire(A,D,V,L);
 
   document.getElementById('entered2').textContent=A.toFixed(2)+" A";
   document.getElementById('design2').textContent=D.toFixed(2)+" A";
   document.getElementById('protText2').textContent=protectionLabel(type);
   document.getElementById('prot2').textContent=B ? B+" A" : ">100 A – engineering review";
+  document.getElementById('wire2').textContent=WG;
   document.getElementById('note2').textContent=safetyNote(type);
   document.getElementById('r2').style.display="block";
 }
